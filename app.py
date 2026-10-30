@@ -43,7 +43,7 @@ async def tarefas():
         lista_somente_id_titulo.append({id_tarefa: titulo_tarefa})
 
     return lista_somente_id_titulo
-x
+
 # POST /tarefas: Cria tarefa
 @APP.post("/tarefas", status_code=201)
 async def post_tarefa(titulo: str, descricao: str):
