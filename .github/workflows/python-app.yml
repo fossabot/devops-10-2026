@@ -30,7 +30,7 @@ jobs:
       run: |
         pylint app
     - name: Test with pytest
-      with: 
+      env:
         DATABASE_USERNAME: mock 
         DATABASE_PASSWORD: mock 
         DATABASE_ADDRESS: mock 
