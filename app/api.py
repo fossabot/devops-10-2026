@@ -32,12 +32,12 @@ if DATABASE is None:
     sys.exit(1)
 
 ENGINE = create_engine(
-    f"mysql+pymysql://{DATABASE_USERNAME}:{DATABASE_PASSWORD}@{DATABASE_ADDRESS}:3306/{DATABASE}"
+    f"postgresql+psycopg://{DATABASE_USERNAME}:{DATABASE_PASSWORD}@{DATABASE_ADDRESS}/{DATABASE}"
 )
 
 
 def criar_sessao():
-    """ Função utilitária para criar sessão no banco de dados """
+    """Função utilitária para criar sessão no banco de dados"""
     with Session(ENGINE) as s:
         yield s
 
@@ -46,7 +46,7 @@ SESSAO = Annotated[Session, Depends(criar_sessao)]
 
 
 async def inicializacao(_: FastAPI):
-    """ Função para incialização da API e do banco de dados """
+    """Função para incialização da API e do banco de dados"""
     SQLModel.metadata.create_all(ENGINE)
     yield
 
