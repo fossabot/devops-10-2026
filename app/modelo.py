@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from typing import Optional
 from sqlmodel import SQLModel, Field
 
+
 class Tarefa(SQLModel, table=True):
     """Modelo de tarefa"""
 
@@ -17,7 +18,7 @@ class Tarefa(SQLModel, table=True):
     def finalizar(self):
         """Método para finalizar tarefa"""
         self.concluida = True
-        self.data_conclusao = datetime.now().astimezone(timezone.utc)
+        self.data_conclusao = datetime.now().astimezone(timezone.utc).replace(microsecond=0)
 
     def resumir(self):
         """Resume tarefa em `id: titulo`"""
