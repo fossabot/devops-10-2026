@@ -4,11 +4,27 @@ from datetime import datetime, timezone
 from typing import Annotated, List
 import os
 import sys
+import logging
 
 from fastapi import FastAPI, Depends
+from fastapi.responses import JSONResponse
 from sqlmodel import SQLModel, Session, create_engine, select
 
 from .modelo import Tarefa
+
+LOGGER = logging.getLogger("aplicacao")
+LOGGER.setLevel(logging.INFO)
+
+arquivo = logging.FileHandler("aplicacao.log", encoding='utf-8')
+saida_padrao = logging.StreamHandler()
+
+formatador = logging.Formatter("%(name)s | %(levelname)s | %(asctime)s | %(filename)s:%(lineno)s | %(message)s")
+
+arquivo.setFormatter(formatador)
+saida_padrao.setFormatter(formatador)
+
+LOGGER.addHandler(arquivo)
+LOGGER.addHandler(saida_padrao)
 
 DATABASE_USERNAME = os.environ.get("DATABASE_USERNAME")
 DATABASE_PASSWORD = os.environ.get("DATABASE_PASSWORD")
@@ -16,19 +32,19 @@ DATABASE_ADDRESS = os.environ.get("DATABASE_ADDRESS")
 DATABASE = os.environ.get("DATABASE")
 
 if DATABASE_USERNAME is None:
-    print("DATABASE_USERNAME está faltando")
+    LOGGER.critical("DATABASE_USERNAME está faltando")
     sys.exit(1)
 
 if DATABASE_PASSWORD is None:
-    print("DATABASE_PASSWORD está faltando")
+    LOGGER.critical("DATABASE_PASSWORD está faltando")
     sys.exit(1)
 
 if DATABASE_ADDRESS is None:
-    print("DATABASE_ADDRESS está faltando")
+    LOGGER.critical("DATABASE_ADDRESS está faltando")
     sys.exit(1)
 
 if DATABASE is None:
-    print("DATABASE está faltando")
+    LOGGER.critical("DATABASE está faltando")
     sys.exit(1)
 
 ENGINE = create_engine(
@@ -54,11 +70,17 @@ async def inicializacao(_: FastAPI):
 APP = FastAPI(lifespan=inicializacao)
 TAREFAS = []
 
+@APP.exception_handler(404)
+async def trata_404(_, __):
+    LOGGER.error("Página inexistente")
+    return JSONResponse({"mensagem": "Página inexistente"})
 
 # GET /tarefas: Lista todas as tarefas (somente id e titulo)
 @APP.get("/tarefas")
 async def tarefas(sessao: SESSAO) -> List[Tarefa]:
     """Rota para listar as tarefas."""
+
+    LOGGER.info("Usuário listou as tarefas")
 
     lista_tarefas = sessao.exec(select(Tarefa).offset(0)).all()
 
@@ -76,6 +98,9 @@ async def post_tarefa(sessao: SESSAO, titulo: str, descricao: str = None):
         data_criacao=data,
     )
 
+    LOGGER.info("Usuário criou uma tarefa")
+    LOGGER.debug(f"Tarefa criada: {tarefa_nova}")
+
     sessao.add(tarefa_nova)
     sessao.commit()
     sessao.refresh(tarefa_nova)
@@ -92,8 +117,10 @@ async def tarefa_especifica(sessao: SESSAO, id_tarefa: int) -> Tarefa:
     resultado = sessao.exec(regra).all()
 
     if resultado:
+        LOGGER.info(f"Usuário listou a tafefa {resultado[0].get_id()}")
         return resultado[0]
 
+    LOGGER.info("Usuário tentou acessar uma tarefa inexistente")
     return {"mensagem": "Tarefa não existe"}
 
 
@@ -110,9 +137,11 @@ async def concluir_tarefa(sessao: SESSAO, id_tarefa: int):
     resultado = sessao.exec(regra).all()
 
     if not resultado:
+        LOGGER.info("Usuário tentou finalizar uma tarefa inexistente")
         return {"mensagem": "Tarefa não existe"}
 
     if resultado[0].concluida is True:
+        LOGGER.info(f"Usuário tentou finalizar a tafefa {resultado[0].get_id()} que já está finalizada")
         return {"mensagem": "Tarefa já finalizada"}
 
     resultado[0].finalizar()
@@ -121,6 +150,7 @@ async def concluir_tarefa(sessao: SESSAO, id_tarefa: int):
     sessao.commit()
     sessao.refresh(resultado[0])
 
+    LOGGER.info(f"Usuário finalizou a tafefa {resultado[0].get_id()}")
     return {"mensagem": "Tarefa atualizada"}
 
 
@@ -133,6 +163,7 @@ async def apagar_tarefa(sessao: SESSAO, id_tarefa: int):
     resultado = sessao.exec(regra).all()
 
     if not resultado:
+        LOGGER.info("Usuário tentou apagar uma tarefa inexistente")
         return {"mensagem": "Tarefa não existe"}
 
     tarefa = resultado[0]
@@ -140,12 +171,15 @@ async def apagar_tarefa(sessao: SESSAO, id_tarefa: int):
     sessao.delete(tarefa)
     sessao.commit()
 
+    LOGGER.info(f"Usuário removeu a tarefa {tarefa.get_id()}")
     return {"mensagem": "Tarefa removida"}
 
 
 @APP.get("/")
 async def index():
     """Rota raíz."""
+
+    LOGGER.info("Usuário acessou a raíz")
     return {"mensagem": "Olá, mundo!"}
 
 
@@ -154,6 +188,7 @@ async def index():
 @APP.get("/autor")
 async def autor():
     """Rota para retornar o autor da aplicação"""
+    LOGGER.info("Usuário consultou o autor")
     return {"mensagem": "Pedro Rocha Horchulhack"}
 
 
